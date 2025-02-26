@@ -2,7 +2,7 @@ import Groq from "groq-sdk";
 
 
 // Replace 'your-api-key-here' with your actual API key
-const groq = new Groq({ apiKey: '',
+const groq = new Groq({ apiKey: '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',
   dangerouslyAllowBrowser: true, // Allow the Groq client to be used in the browser
  });
 
