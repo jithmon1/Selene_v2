@@ -10,7 +10,6 @@ import {
   Keyboard,
   Animated 
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
 import { FIRESTORE_DB, FIREBASE_AUTH } from "@/FirebaseConfig";
 import { 
   collection, 
@@ -22,7 +21,7 @@ import {
   where, 
   updateDoc 
 } from "firebase/firestore";
-import { Snackbar, Checkbox } from "react-native-paper";
+import { Checkbox } from "react-native-paper";
 import { GestureHandlerRootView, Swipeable } from "react-native-gesture-handler";
 import { LinearGradient } from "expo-linear-gradient";
 import { Plus, Clock } from "lucide-react-native";
@@ -30,26 +29,63 @@ import { Ionicons } from "@expo/vector-icons";
 import lightColors from "@/src/constants/Colors";
 import { useRouter } from "expo-router";
 import moment from "moment";
+import * as Notifications from "expo-notifications";
+
+// Set up the notification handler
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 const TaskScreen1 = () => {
   const [tasks, setTasks] = useState<any[]>([]);
   const [taskInput, setTaskInput] = useState("");
-  const [snackbarVisible, setSnackbarVisible] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
   const [showAppreciation, setShowAppreciation] = useState(false);
   const [appreciationMessage, setAppreciationMessage] = useState("");
+  const [progressSubtitle, setProgressSubtitle] = useState("Hey, remember your task, silly?");
+  
   const userId = FIREBASE_AUTH.currentUser?.uid;
   const fadeAnim = new Animated.Value(0);
   const router = useRouter();
 
-  // Appreciation messages
-  const appreciationMessages = [
-    "You rock! 🚀",
-    "Keep it up! 💪",
-    "Amazing progress! 🌟",
-    "You're on fire! 🔥",
-    "Great job! 🎉"
+  // Ten random completion messages (for when marking a task complete)
+  const completionMessages = [
+    "Task Conquered, Victory Awaits! 🎖️",
+    "Another One Down: Keep Shining! ✨",
+    "You did it, champion! 🏆",
+    "Another task bites the dust! 😎",
+    "Crushing it, one task at a time! 🔥",
+    "Task Completed: Onward and Upward! 🚀",
+    "You're a task-crushing machine! 🤖",
+    "Job well done, superstar! 🌟",
+    "Task finished: You're on fire! 🔥",
+    "Another milestone achieved! 🎉"
   ];
+
+  // Request notification permissions on mount
+  useEffect(() => {
+    (async () => {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== "granted") {
+        alert("Permission for notifications not granted!");
+      }
+    })();
+  }, []);
+
+  // Listen for notification responses; on tap, navigate to the task's edit screen
+  // so the user can manually delete (cut off) the task.
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+      const data = response.notification.request.content.data;
+      if (data && data.taskId) {
+        router.push(`/tasks/editTask?taskId=${data.taskId}`);
+      }
+    });
+    return () => subscription.remove();
+  }, []);
 
   // Realtime listener for tasks
   useEffect(() => {
@@ -57,11 +93,41 @@ const TaskScreen1 = () => {
     const q = query(collection(FIRESTORE_DB, "tasks"), where("userId", "==", userId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, error => {
-      showSnackbar("Error loading tasks");
     });
     return () => unsubscribe();
   }, [userId]);
+
+  // Schedule notifications for tasks with reminders.
+  // Cancel all previously scheduled notifications to prevent duplicates.
+  useEffect(() => {
+    (async () => {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      tasks.forEach(async (task) => {
+        if (
+          !task.completed &&
+          task.reminderType &&
+          task.reminderType !== "none" &&
+          task.reminderTime
+        ) {
+          const reminderDate = task.reminderTime.toDate ? task.reminderTime.toDate() : new Date(task.reminderTime);
+          if (reminderDate > new Date()) {
+            try {
+              await Notifications.scheduleNotificationAsync({
+                content: {
+                  title: "Task Reminder",
+                  body: task.task,
+                  data: { taskId: task.id },
+                },
+                trigger: reminderDate,
+              });
+            } catch (error) {
+              console.error("Error scheduling notification:", error);
+            }
+          }
+        }
+      });
+    })();
+  }, [tasks]);
 
   const addQuickTask = async () => {
     if (taskInput.trim()) {
@@ -71,38 +137,54 @@ const TaskScreen1 = () => {
           userId,
           completed: false,
           createdAt: new Date(),
-          // Optionally, you can include reminderType and reminderTime here if needed
         });
         setTaskInput("");
         Keyboard.dismiss();
-        showSnackbar("Task added successfully");
+        // Do not change the subtitle on adding a task.
       } catch (error) {
-        showSnackbar("Error adding task");
+        // No snackbar message as requested.
       }
     }
   };
 
+  // Toggle task completion:
+  // - If marking an incomplete task as complete, show an appreciation message and update subtitle.
+  // - If unticking (marking complete -> incomplete), do nothing to the subtitle.
   const toggleTaskCompletion = async (id: string, completed: boolean) => {
     try {
       await updateDoc(doc(FIRESTORE_DB, "tasks", id), { completed: !completed });
-      if (!completed) showAppreciationMessage();
+      if (!completed) {
+        // Only when marking incomplete -> complete:
+        const randomMsg = completionMessages[Math.floor(Math.random() * completionMessages.length)];
+        // After a short delay, check if progress is 100%.
+        setTimeout(() => {
+          const total = tasks.length;
+          const completedCount = tasks.filter(t => t.completed).length + 1; // +1 because we just toggled one to complete.
+          const rate = total ? Math.round((completedCount / total) * 100) : 0;
+          if (rate === 100 && total > 0) {
+            setProgressSubtitle("Mission Accomplished: You're Unstoppable! 💪");
+          } else {
+            setProgressSubtitle(randomMsg);
+          }
+        }, 500);
+        showAppreciationMessage(randomMsg);
+      }
     } catch (error) {
-      showSnackbar("Error updating task");
+      // No snackbar message as requested.
     }
   };
 
   const deleteTask = async (id: string) => {
     try {
       await deleteDoc(doc(FIRESTORE_DB, "tasks", id));
-      showSnackbar("Task deleted");
+      // Do not update subtitle when deleting a task.
     } catch (error) {
-      showSnackbar("Error deleting task");
+      // Do nothing
     }
   };
 
-  const showAppreciationMessage = () => {
-    const randomMessage = appreciationMessages[Math.floor(Math.random() * appreciationMessages.length)];
-    setAppreciationMessage(randomMessage);
+  const showAppreciationMessage = (msg: string) => {
+    setAppreciationMessage(msg);
     setShowAppreciation(true);
     Animated.timing(fadeAnim, {
       toValue: 1,
@@ -119,23 +201,18 @@ const TaskScreen1 = () => {
     });
   };
 
-  const showSnackbar = (message: string) => {
-    setSnackbarMessage(message);
-    setSnackbarVisible(true);
-    setTimeout(() => setSnackbarVisible(false), 2000);
-  };
-
+  // Header with title "Selene" and dynamic subtitle (only updated when a task is marked complete or when progress reaches 100%)
   const ProgressHeader = () => {
     const total = tasks.length;
     const completed = tasks.filter(t => t.completed).length;
     const rate = total ? Math.round((completed / total) * 100) : 0;
-
     return (
       <LinearGradient
         colors={[lightColors.primary, lightColors.accent]}
         style={styles.header}
       >
-        <Text style={styles.headerTitle}>Progress</Text>
+        <Text style={styles.headerTitle}>Selene</Text>
+        <Text style={styles.headerSubtitle}>{progressSubtitle}</Text>
         <View style={styles.progressContainer}>
           <Text style={styles.progressText}>{rate}% Complete</Text>
           <View style={styles.progressBar}>
@@ -180,10 +257,10 @@ const TaskScreen1 = () => {
               <View style={styles.reminderInfo}>
                 <Ionicons name="alarm" size={14} color="#FF4500" />
                 <Text style={styles.reminderText}>
-                  {item.reminderType.charAt(0).toUpperCase() + item.reminderType.slice(1)} at{" "}
-                  {item.reminderTime.toDate
-                    ? moment(item.reminderTime.toDate()).format("LT")
-                    : moment(item.reminderTime).format("LT")}
+                  {item.reminderType === "custom"
+                    ? moment(item.reminderTime.toDate ? item.reminderTime.toDate() : item.reminderTime).format("LT")
+                    : item.reminderType.charAt(0).toUpperCase() + item.reminderType.slice(1) + " at " +
+                      moment(item.reminderTime.toDate ? item.reminderTime.toDate() : item.reminderTime).format("LT")}
                 </Text>
               </View>
             )}
@@ -222,14 +299,6 @@ const TaskScreen1 = () => {
           <Text style={styles.appreciationText}>{appreciationMessage}</Text>
         </Animated.View>
       )}
-      <Snackbar
-        visible={snackbarVisible}
-        onDismiss={() => setSnackbarVisible(false)}
-        style={styles.snackbar}
-        duration={2000}
-      >
-        <Text style={styles.snackbarText}>{snackbarMessage}</Text>
-      </Snackbar>
     </GestureHandlerRootView>
   );
 };
@@ -247,11 +316,18 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 25,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 28,
     color: "white",
     fontWeight: "600",
-    marginBottom: 15,
     fontFamily: "firamedium",
+    textAlign: "center",
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: "white",
+    marginBottom: 15,
+    fontFamily: "firaregular",
+    textAlign: "center",
   },
   progressContainer: {
     backgroundColor: "rgba(255,255,255,0.2)",
@@ -365,17 +441,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     color: "#40E0D0",
-    fontFamily: "firamedium",
-  },
-  snackbar: {
-    backgroundColor: "#323232",
-    borderRadius: 8,
-    margin: 20,
-  },
-  snackbarText: {
-    color: "white",
-    fontSize: 15,
-    textAlign: "center",
     fontFamily: "firamedium",
   },
   listContent: {
