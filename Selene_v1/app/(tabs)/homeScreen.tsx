@@ -12,22 +12,22 @@ import moment from 'moment';
 import Calendar from '@/src/components/Calender';
 import { useUserData } from '../providers/UserDataProvider';
 import { Audio, Video } from 'expo-av';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import lightColors from '@/src/constants/Colors';
 
 const HomeScreen = () => {
   const [selectedDate, setSelectedDate] = useState(moment().format('YYYY-MM-DD'));
   const { userData } = useUserData();
+  const router = useRouter();
 
-  // Convert selectedDate to match journal entries' date format
   const formattedDate = moment(selectedDate, 'YYYY-MM-DD').format('DD MMMM YYYY');
-
-  // Filter journal entries for the selected date
   const filteredEntries = userData?.filter((entry) => entry.date === formattedDate);
 
   const handleSelectDate = (date) => {
     setSelectedDate(date);
   };
 
-  // Render each journal entry using our custom JournalEntryItem component
   const renderItem = ({ item }) => <JournalEntryItem entry={item} />;
 
   return (
@@ -35,27 +35,43 @@ const HomeScreen = () => {
       <Calendar selectedDate={selectedDate} onSelectDate={handleSelectDate} />
 
       <View style={styles.entriesContainer}>
-        <Text style={styles.heading}>Journals for {formattedDate}</Text>
+        <View style={styles.headingRow}>
+          <Text style={styles.heading}>Journals for {formattedDate}</Text>
+        </View>
+
         {filteredEntries?.length === 0 ? (
-          <Text style={styles.noEntries}>No entries for this date.</Text>
+          <View style={styles.emptyState}>
+            <Ionicons name="journal-outline" size={40} color={lightColors.primary} />
+            <Text style={styles.noEntries}>No entries for this date</Text>
+          </View>
         ) : (
           <FlatList
             data={filteredEntries}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
+            contentContainerStyle={styles.listContent}
           />
         )}
       </View>
+
+      {/* AI Journal Floating Button */}
+      <TouchableOpacity 
+        style={styles.aiButton}
+        onPress={() => router.push('/chat/AIJournalScreen')}
+      >
+        <View style={styles.buttonContent}>
+          <Ionicons name="sparkles" size={24} color="white" />
+          <Text style={styles.aiButtonText}>AI Journal Assistant</Text>
+        </View>
+      </TouchableOpacity>
     </View>
   );
 };
 
-// This component renders a single journal entry with its media (images, videos, audio)
 const JournalEntryItem = ({ entry }) => {
   const [sound, setSound] = useState(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
 
-  // Cleanup the audio resource when the component unmounts
   useEffect(() => {
     return () => {
       if (sound) {
@@ -94,7 +110,6 @@ const JournalEntryItem = ({ entry }) => {
       <Text style={styles.entryTitle}>{entry.title}</Text>
       <Text style={styles.entryContent}>{entry.content}</Text>
 
-      {/* Display media if available */}
       {entry.media && entry.media.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mediaScroll}>
           {entry.media.map((mediaItem, index) => {
@@ -123,9 +138,13 @@ const JournalEntryItem = ({ entry }) => {
         </ScrollView>
       )}
 
-      {/* Audio control if an audio URL is provided */}
       {entry.audioUrl && (
         <TouchableOpacity style={styles.audioButton} onPress={handlePlayAudio}>
+          <Ionicons 
+            name={isPlayingAudio ? 'pause-circle' : 'play-circle'} 
+            size={24} 
+            color="white" 
+          />
           <Text style={styles.audioButtonText}>
             {isPlayingAudio ? 'Stop Audio' : 'Play Audio'}
           </Text>
@@ -143,52 +162,112 @@ const styles = StyleSheet.create({
   },
   entriesContainer: {
     flex: 1,
-    paddingVertical: 10,
+    marginTop: 20,
+    marginBottom: 80, // Space for the floating button
+  },
+  headingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   heading: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 8,
+    color: lightColors.primary,
+    fontFamily: 'firamedium',
+  },
+  aiButton: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    transform: [{ translateY: -70 }],
+    backgroundColor: lightColors.primary,
+    padding: 16,
+    borderRadius: 12,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  aiButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '600',
+    fontFamily: 'firamedium',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
   noEntries: {
     fontSize: 16,
-    color: 'gray',
+    color: '#666',
+    marginTop: 10,
+    textAlign: 'center',
+    fontFamily: 'firaregular',
+  },
+  listContent: {
+    paddingBottom: 20,
   },
   entry: {
     backgroundColor: '#f8f8f8',
-    padding: 10,
-    marginVertical: 5,
-    borderRadius: 8,
+    padding: 16,
+    marginVertical: 8,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   entryTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 4,
+    color: lightColors.primary,
+    marginBottom: 8,
+    fontFamily: 'firamedium',
   },
   entryContent: {
     fontSize: 14,
-    color: 'gray',
-    marginBottom: 8,
+    color: '#333',
+    lineHeight: 20,
+    fontFamily: 'firaregular',
   },
   mediaScroll: {
-    marginVertical: 8,
+    marginVertical: 12,
   },
   mediaThumbnail: {
     width: 100,
     height: 100,
     borderRadius: 8,
-    marginRight: 8,
+    marginRight: 12,
   },
   audioButton: {
-    backgroundColor: '#007AFF',
-    padding: 8,
-    borderRadius: 6,
+    backgroundColor: lightColors.accent,
+    padding: 12,
+    borderRadius: 8,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
   },
   audioButtonText: {
     color: '#fff',
     fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'firamedium',
   },
 });
 
