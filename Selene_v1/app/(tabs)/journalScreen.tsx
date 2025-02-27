@@ -109,6 +109,9 @@ const JournalScreen = () => {
   const handleViewAllPress = () => {
     router.push('/journals/AllEntries');
   };
+  const handleSearchPress = () => {
+    router.push('/journals/SearchJournal');
+  };
 
   // Render a single journal entry with media preview.
   const JournalEntryItem = ({ entry }) => {
@@ -174,12 +177,13 @@ const JournalScreen = () => {
         keyExtractor={(item, index) => index.toString()}
         ListHeaderComponent={
           <>
+                        <TouchableOpacity onPress={handleSearchPress}>
+
             <View style={styles.searchContainer}>
-              <SearchBar
-                searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
-              />
+                <SearchBar/>
             </View>
+            </TouchableOpacity>
+
             <View style={styles.tagContainer}>
               <TagCarousel tags={selectedTags} />
             </View>

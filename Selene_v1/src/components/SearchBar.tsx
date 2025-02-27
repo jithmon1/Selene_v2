@@ -8,8 +8,10 @@ const SearchBar = () => {
     <View style={styles.container}>
         <View style={styles.searchBar}>
             <Ionicons name="search-outline" size={24} color='gray' />
-            <TextInput style={styles.searchText} placeholder="Search for journal entries"  
-            autoCapitalize='none' />
+            <Text style={styles.searchText}>
+       Search for journal entries
+                </Text>  
+           
         </View>
     </View>
   )
@@ -24,6 +26,7 @@ const styles=StyleSheet.create({
     searchBar:{
         backgroundColor:"rgba(238, 252, 255, 0.8)",
         padding:8,
+        paddingVertical:16,
         borderRadius:10,
         flexDirection:'row',
         borderLeftWidth: 2, // Add left border
