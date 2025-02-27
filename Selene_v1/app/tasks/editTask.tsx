@@ -6,7 +6,8 @@ import {
   TouchableOpacity, 
   StyleSheet, 
   Alert,
-  ActivityIndicator 
+  ActivityIndicator,
+  Platform
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -26,6 +27,7 @@ const EditTask = () => {
   const [task, setTask] = useState("");
   const [dueDate, setDueDate] = useState(new Date());
   const [reminderType, setReminderType] = useState("none");
+  // Initialize reminderTime (this will be overwritten if the task has a saved reminder)
   const [reminderTime, setReminderTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -45,12 +47,16 @@ const EditTask = () => {
         if (taskSnap.exists()) {
           const data = taskSnap.data();
           setTask(data.task || "");
-          // For dueDate and reminderTime, support both Firestore Timestamp or Date
-          setDueDate(data.dueDate ? (data.dueDate.toDate ? data.dueDate.toDate() : new Date(data.dueDate)) : new Date());
+          // Support both Firestore Timestamp or Date values
+          setDueDate(
+            data.dueDate
+              ? (data.dueDate.toDate ? data.dueDate.toDate() : new Date(data.dueDate))
+              : new Date()
+          );
           setReminderType(data.reminderType || "none");
           setReminderTime(
-            data.reminderTime 
-              ? (data.reminderTime.toDate ? data.reminderTime.toDate() : new Date(data.reminderTime)) 
+            data.reminderTime
+              ? (data.reminderTime.toDate ? data.reminderTime.toDate() : new Date(data.reminderTime))
               : new Date()
           );
         } else {
@@ -80,7 +86,7 @@ const EditTask = () => {
         task: task.trim(),
         dueDate: dueDate,
         reminderType: reminderType,
-        // Only store reminderTime if reminderType is not "none"
+        // Only store reminderTime if a reminder is set
         reminderTime: reminderType !== "none" ? reminderTime : null,
       });
       Alert.alert("Success", "Task updated successfully.");
@@ -175,6 +181,7 @@ const EditTask = () => {
               ]}
               onPress={() => {
                 setReminderType(type);
+                // When selecting "custom", show the time picker without resetting reminderTime
                 if (type === "custom") setShowTimePicker(true);
               }}
             >
@@ -194,9 +201,12 @@ const EditTask = () => {
             value={reminderTime}
             mode="time"
             display="default"
-            onChange={(event, time) => {
+            onChange={(event, selectedTime) => {
+              // For iOS, keep showing the picker; for others, hide after selection.
               setShowTimePicker(Platform.OS === "ios");
-              if (time) setReminderTime(time);
+              if (selectedTime) {
+                setReminderTime(selectedTime);
+              }
             }}
           />
         )}
@@ -204,8 +214,9 @@ const EditTask = () => {
           <View style={styles.reminderInfoDisplay}>
             <Ionicons name="alarm" size={16} color="#FF4500" />
             <Text style={styles.reminderInfoText}>
-              Reminder: {reminderType.charAt(0).toUpperCase() + reminderType.slice(1)}
-              {reminderType === "custom" ? ` at ${moment(reminderTime).format("LT")}` : ""}
+              Reminder:{" "}
+              {reminderType.charAt(0).toUpperCase() + reminderType.slice(1)}
+              {reminderType === "custom" && ` at ${moment(reminderTime).format("LT")}`}
             </Text>
           </View>
         )}
