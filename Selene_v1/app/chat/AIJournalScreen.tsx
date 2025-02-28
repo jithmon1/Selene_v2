@@ -8,6 +8,7 @@ import {
   StyleSheet,
   StatusBar,
   Keyboard,
+  Modal,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Send } from "lucide-react-native";
@@ -18,6 +19,7 @@ import { getFirestore, collection, query, where, getDocs } from "firebase/firest
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import firebaseApp from "@/FirebaseConfig";
 import moment from "moment";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 const db = getFirestore(firebaseApp);
 const auth = getAuth(firebaseApp);
@@ -33,6 +35,9 @@ export default function AIJournalScreen() {
   const [inputText, setInputText] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedSummaryDate, setSelectedSummaryDate] = useState(moment().toDate());
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -41,17 +46,14 @@ export default function AIJournalScreen() {
     return () => unsubscribe();
   }, []);
 
-  const fetchSnippetsForToday = async () => {
+  const fetchSnippetsForDate = async (date: Date) => {
     if (!currentUserId) return [];
     
-    const todayDate = moment().format("DD MMMM YYYY");
+    const targetDate = moment(date).format("DD MMMM YYYY");
     
     try {
       const journalsRef = collection(db, `users/${currentUserId}/journals`);
-      const q = query(
-        journalsRef,
-        where("date", "==", todayDate)
-      );
+      const q = query(journalsRef, where("date", "==", targetDate));
 
       const querySnapshot = await getDocs(q);
       return querySnapshot.docs.map(doc => {
@@ -72,7 +74,29 @@ export default function AIJournalScreen() {
     }
   };
 
-  const handleSummarize = async () => {
+  const handleDateChange = (event: any, date?: Date) => {
+    if (event.type === "set" && date) {
+      setSelectedSummaryDate(date);
+      setShowDatePicker(false);
+      handleSummarize(date);
+    } else {
+      setShowDatePicker(false);
+    }
+  };
+
+  const handleDateSelectionToday = () => {
+    const today = moment().toDate();
+    setSelectedSummaryDate(today);
+    setShowModal(false);
+    handleSummarize(today);
+  };
+
+  const handleDateSelectionOther = () => {
+    setShowModal(false);
+    setShowDatePicker(true);
+  };
+
+  const handleSummarize = async (date?: Date) => {
     if (!currentUserId) {
       addBotMessage("Please sign in to access your journal entries.");
       return;
@@ -80,10 +104,11 @@ export default function AIJournalScreen() {
 
     setIsLoading(true);
     try {
-      const snippets = await fetchSnippetsForToday();
+      const targetDate = date || selectedSummaryDate;
+      const snippets = await fetchSnippetsForDate(targetDate);
       
       if (snippets.length === 0) {
-        addBotMessage("No journal entries found for today.");
+        addBotMessage(`No journal entries found for ${moment(targetDate).format("DD MMMM YYYY")}.`);
         return;
       }
 
@@ -92,25 +117,27 @@ export default function AIJournalScreen() {
         ` ${snippet.title}\n` +
         `${snippet.content}\n` +
         ` Tags: ${snippet.tags.join(", ") || "None"}\n` +
+        (snippet.media?.length ? ` ${snippet.media.length} media items\n` : "") +
+        (snippet.audioUrl ? ` Audio recording available\n` : "") +
         `────────────────────`
       ).join("\n\n");
 
       const prompt = `Create a comprehensive daily journal summary from these entries:\n\n` +
-        `Today's Date: ${moment().format("DD MMMM YYYY")}\n\n` +
+        `Date: ${moment(targetDate).format("DD MMMM YYYY")}\n\n` +
         `${formattedSnippets}\n\n` +
         `Format the summary with:\n` +
         `1. A meaningful title\n` +
         `2. Key highlights\n` +
         `3. Emotional analysis\n` +
         `4. Tag trends\n` +
-        `5. Journal entry\n` +
+        `5. Media/audio insights\n` +
         `Summarize the following journal entries:\n\n${snippets
         .map((snippet, index) => `${index + 1}. ${snippet.text}`)
         .join('\n')}\n\nGenerate a journal entry summarizing the day.`;
 
       const summary = await fetchDataFromGrok([{ role: "user", content: prompt }]);
       
-      addBotMessage(` **Daily Summary - ${moment().format("DD MMMM YYYY")}**\n\n${summary}`);
+      addBotMessage(` **Journal Summary - ${moment(targetDate).format("DD MMMM YYYY")}**\n\n${summary}`);
       
     } catch (error) {
       console.error("Summary generation error:", error);
@@ -119,8 +146,6 @@ export default function AIJournalScreen() {
       setIsLoading(false);
     }
   };
-
-
 
   const handleSend = async () => {
     if (!inputText.trim() || isLoading) return;
@@ -185,24 +210,70 @@ export default function AIJournalScreen() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      
+      {/* Modal for selecting date option */}
+      <Modal
+        visible={showModal}
+        transparent={true}
+        animationType="slide"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Summary Date</Text>
+            
+            <TouchableOpacity 
+              style={styles.dateOption}
+              onPress={handleDateSelectionToday}
+            >
+              <Text style={styles.dateOptionText}>Today</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.dateOption}
+              onPress={handleDateSelectionOther}
+            >
+              <Text style={styles.dateOptionText}>Choose Specific Date</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.cancelButton}
+              onPress={() => setShowModal(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal for DateTimePicker */}
+      <Modal
+        visible={showDatePicker}
+        transparent={true}
+        animationType="slide"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <DateTimePicker
+              value={selectedSummaryDate}
+              mode="date"
+              display="default"
+              onChange={handleDateChange}
+            />
+            <TouchableOpacity 
+              style={styles.cancelButton}
+              onPress={() => setShowDatePicker(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <LinearGradient
         colors={[lightColors.primary, lightColors.accent]}
         style={styles.header}
       >
         <Text style={styles.headerTitle}>AI Journal</Text>
         <Text style={styles.text}>Chat with your journals using AI</Text>
-        
-        <TouchableOpacity
-          style={[styles.summarizeButton, !currentUserId && styles.disabledButton]}
-          onPress={handleSummarize}
-          disabled={!currentUserId || isLoading}
-        >
-          <Text style={styles.summarizeButtonText}>
-            {isLoading ? "Processing..." : "generate Journal"}
-          </Text>
-        </TouchableOpacity>
       </LinearGradient>
 
       <FlatList
@@ -233,6 +304,16 @@ export default function AIJournalScreen() {
           <Send size={24} color="white" />
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity
+        style={styles.generateButton}
+        onPress={() => setShowModal(true)}
+        disabled={!currentUserId || isLoading}
+      >
+        <Text style={styles.generateButtonText}>
+          {isLoading ? "Processing..." : "Generate Journal"}
+        </Text>
+      </TouchableOpacity>
     </GestureHandlerRootView>
   );
 }
@@ -314,18 +395,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  summarizeButton: {
-    backgroundColor: "#093A3E",
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 10,
-    alignSelf: "center",
-  },
-  summarizeButtonText: {
-    color: "white",
-    fontFamily: "firamedium",
-    fontSize: 16,
-  },
   disabledButton: {
     backgroundColor: "#cccccc",
   },
@@ -335,5 +404,64 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     padding: 10,
     fontFamily: "firaregular",
+  },
+  generateButton: {
+    position: "absolute",
+    bottom: 70,
+    alignSelf: "center",
+    backgroundColor: lightColors.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 30,
+    borderRadius: 12,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 1,
+  },
+  generateButtonText: {
+    color: "white",
+    fontFamily: "firamedium",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  modalContent: {
+    backgroundColor: "white",
+    marginHorizontal: 20,
+    borderRadius: 15,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: "firamedium",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  dateOption: {
+    backgroundColor: lightColors.primary,
+    padding: 15,
+    borderRadius: 10,
+    marginVertical: 8,
+    alignItems: "center",
+  },
+  dateOptionText: {
+    color: "white",
+    fontFamily: "firamedium",
+    fontSize: 16,
+  },
+  cancelButton: {
+    marginTop: 15,
+    padding: 10,
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    color: lightColors.error,
+    fontFamily: "firamedium",
   },
 });
