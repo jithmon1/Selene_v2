@@ -14,9 +14,10 @@ import { Send } from "lucide-react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import lightColors from "@/src/constants/Colors";
 import { fetchDataFromGrok } from "@/app/chat/grokapi";
-import { getFirestore, collection, query, where, getDocs, Timestamp } from "firebase/firestore";
+import { getFirestore, collection, query, where, getDocs } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import firebaseApp from "@/FirebaseConfig";
+import moment from "moment";
 
 const db = getFirestore(firebaseApp);
 const auth = getAuth(firebaseApp);
@@ -43,19 +44,32 @@ export default function AIJournalScreen() {
   const fetchSnippetsForToday = async () => {
     if (!currentUserId) return [];
     
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    const todayDate = moment().format("DD MMMM YYYY");
+    
+    try {
+      const journalsRef = collection(db, `users/${currentUserId}/journals`);
+      const q = query(
+        journalsRef,
+        where("date", "==", todayDate)
+      );
 
-    const snippetsRef = collection(db, `users/${currentUserId}/journals`);
-    const q = query(
-      snippetsRef,
-      where("createdAt", ">=", Timestamp.fromDate(startOfDay)),
-      where("createdAt", "<", Timestamp.fromDate(endOfDay))
-    );
-
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => doc.data().text);
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          title: data.title || "Untitled Entry",
+          content: data.content || "",
+          time: data.time || "No time",
+          tags: data.tags || [],
+          date: data.date,
+          media: data.media || [],
+          audioUrl: data.audioUrl || ""
+        };
+      });
+    } catch (error) {
+      console.error("Error fetching snippets:", error);
+      return [];
+    }
   };
 
   const handleSummarize = async () => {
@@ -63,7 +77,7 @@ export default function AIJournalScreen() {
       addBotMessage("Please sign in to access your journal entries.");
       return;
     }
-  
+
     setIsLoading(true);
     try {
       const snippets = await fetchSnippetsForToday();
@@ -72,44 +86,45 @@ export default function AIJournalScreen() {
         addBotMessage("No journal entries found for today.");
         return;
       }
-  
-      // Create a more structured prompt for diary generation
-      const prompt = `Convert these journal snippets into a proper diary entry for ${new Date().toLocaleDateString()}. 
-      Include a meaningful title, organize thoughts into coherent paragraphs, and maintain the original sentiment.
-      Use this format:
-      
-      **Title**: [Create an appropriate title]
-      
-      **Entries**:
-      - [First entry summary]
-      - [Second entry summary]
-      
-      **Highlights**: 
-      - [Key moments from the day]
-      
-      **Reflections**:
-      - [Thoughts and feelings]
-      
-      **Closing**: [Positive closing statement]
-      
-      Journal snippets:\n${snippets.join("\n")}`;
-  
+
+      const formattedSnippets = snippets.map((snippet, index) => 
+        ` ${snippet.time}\n` +
+        ` ${snippet.title}\n` +
+        `${snippet.content}\n` +
+        ` Tags: ${snippet.tags.join(", ") || "None"}\n` +
+        `────────────────────`
+      ).join("\n\n");
+
+      const prompt = `Create a comprehensive daily journal summary from these entries:\n\n` +
+        `Today's Date: ${moment().format("DD MMMM YYYY")}\n\n` +
+        `${formattedSnippets}\n\n` +
+        `Format the summary with:\n` +
+        `1. A meaningful title\n` +
+        `2. Key highlights\n` +
+        `3. Emotional analysis\n` +
+        `4. Tag trends\n` +
+        `5. Journal entry\n` +
+        `Summarize the following journal entries:\n\n${snippets
+        .map((snippet, index) => `${index + 1}. ${snippet.text}`)
+        .join('\n')}\n\nGenerate a journal entry summarizing the day.`;
+
       const summary = await fetchDataFromGrok([{ role: "user", content: prompt }]);
       
-      // Add formatted diary entry with timestamp
-      addBotMessage(`📖 **Daily Diary - ${new Date().toLocaleDateString()}**\n\n${summary}`);
+      addBotMessage(` **Daily Summary - ${moment().format("DD MMMM YYYY")}**\n\n${summary}`);
       
     } catch (error) {
-      addBotMessage("Error generating diary entry. Please try again.");
+      console.error("Summary generation error:", error);
+      addBotMessage("Error generating summary. Please check your connection and try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
+
+
   const handleSend = async () => {
     if (!inputText.trim() || isLoading) return;
 
-    // Add user message
     const userMessage: Message = {
       id: Date.now().toString(),
       text: inputText,
@@ -122,11 +137,10 @@ export default function AIJournalScreen() {
     setIsLoading(true);
 
     try {
-      const chatHistory: Array<{ role: "user" | "assistant"; content: string }> = 
-        messages.map(msg => ({
-          role: msg.isUser ? "user" : "assistant",
-          content: msg.text,
-        }));
+      const chatHistory = messages.map(msg => ({
+        role: msg.isUser ? "user" : "assistant",
+        content: msg.text,
+      }));
 
       const response = await fetchDataFromGrok([
         ...chatHistory,
@@ -135,6 +149,7 @@ export default function AIJournalScreen() {
 
       addBotMessage(response);
     } catch (error) {
+      console.error("Chat error:", error);
       addBotMessage("Sorry, I encountered an error. Please try again.");
     } finally {
       setIsLoading(false);
@@ -185,7 +200,7 @@ export default function AIJournalScreen() {
           disabled={!currentUserId || isLoading}
         >
           <Text style={styles.summarizeButtonText}>
-            {isLoading ? "Processing..." : "Generate Summary"}
+            {isLoading ? "Processing..." : "generate Journal"}
           </Text>
         </TouchableOpacity>
       </LinearGradient>
@@ -268,6 +283,7 @@ const styles = StyleSheet.create({
   messageText: {
     fontSize: 16,
     fontFamily: "firamedium",
+    lineHeight: 22,
   },
   userText: {
     color: "white",
