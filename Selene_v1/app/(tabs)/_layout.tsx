@@ -42,7 +42,7 @@ export default function TabLayout() {
         name="mediaScreen"
         options={{
           title: 'media',
-          tabBarIcon: ({ color, size }) => <FontAwesome name="picture-o" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <FontAwesome name="image" color={color} size={size} />,
         }}
       />
       {/* Add other screens here */}
