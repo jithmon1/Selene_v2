@@ -29,7 +29,7 @@ const Calendar: React.FC<CalendarProps> = ({ selectedDate, onSelectDate }) => {
     if (currentDateIndex !== -1 && scrollViewRef.current) {
       const screenWidth = Dimensions.get('window').width;
       const itemWidth = screenWidth / 7; // Assuming 7 items fit in the screen width
-      const scrollToX = (currentDateIndex+5) * itemWidth - screenWidth / 2 + itemWidth / 2;
+      const scrollToX = (currentDateIndex) * itemWidth - screenWidth / 2 + itemWidth / 2;
       scrollViewRef.current.scrollTo({ x: scrollToX, animated: true });
     }
   }, [dates]);

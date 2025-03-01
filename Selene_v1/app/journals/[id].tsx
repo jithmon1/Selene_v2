@@ -1,4 +1,4 @@
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import React from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useUserData } from '../providers/UserDataProvider';
@@ -42,6 +42,7 @@ const JournalDisplay = () => {
         </TouchableOpacity>
         <Text style={styles.title}>Journal Entry</Text>
       </View>
+      <ScrollView contentContainerStyle={styles.scrollViewContent}>
 
       {journalEntry ? (
         <>
@@ -88,6 +89,8 @@ const JournalDisplay = () => {
       ) : (
         <Text style={styles.notFound}>Journal entry not found</Text>
       )}
+            </ScrollView>
+
     </View>
   );
 };
@@ -104,6 +107,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
+  scrollViewContent: {
+    paddingBottom: 20, // Add padding to the bottom to ensure all content is visible
+  },
   backIcon: {
     marginRight: 10,
   },
@@ -115,6 +121,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontFamily: 'firamedium',
     marginBottom: 5,
+    color: lightColors.primary,
   },
   date: {
     fontSize: 16,
