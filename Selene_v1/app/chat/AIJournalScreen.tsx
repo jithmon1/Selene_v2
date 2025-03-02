@@ -38,13 +38,44 @@ export default function AIJournalScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedSummaryDate, setSelectedSummaryDate] = useState(moment().toDate());
+  const [allJournals, setAllJournals] = useState<any[]>([]);
+
+  // Identity response configuration
+  const identityTriggers = [
+    "who are you",
+    "what are you",
+    "who created you",
+    "what is your purpose",
+    "what can you do"
+  ];
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUserId(user?.uid || null);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setCurrentUserId(user.uid);
+        const journals = await fetchAllJournals(user.uid);
+        setAllJournals(journals);
+      } else {
+        setCurrentUserId(null);
+        setAllJournals([]);
+      }
     });
     return () => unsubscribe();
   }, []);
+
+  const fetchAllJournals = async (userId: string) => {
+    try {
+      const journalsRef = collection(db, `users/${userId}/journals`);
+      const querySnapshot = await getDocs(journalsRef);
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      console.error("Error fetching all journals:", error);
+      return [];
+    }
+  };
 
   const fetchSnippetsForDate = async (date: Date) => {
     if (!currentUserId) return [];
@@ -162,6 +193,24 @@ export default function AIJournalScreen() {
     setIsLoading(true);
 
     try {
+      // Check for identity questions first
+      const cleanInput = inputText.trim().toLowerCase();
+      if (identityTriggers.some(trigger => cleanInput.includes(trigger))) {
+        addBotMessage("I'm Selene AI, an AI bot built on top of this platform Selene. I help you get detailed reports of your journals, recollect your journal points, and many more. Tell me what should I do for you?");
+        setIsLoading(false);
+        return;
+      }
+
+      const journalContext = allJournals.length > 0 
+        ? "Journal Context:\n" + allJournals.map(j => 
+            `[${j.date}] ${j.title}\n${j.content}\nTags: ${j.tags?.join(", ") || "None"}`
+          ).join("\n\n")
+        : "No journal entries available for context";
+
+      const prompt = `${journalContext}\n\nQuestion: ${inputText}\n\n` +
+        "Answer using the journal context if relevant. If not, respond politely that " +
+        "the information isn't available in the journal history.";
+
       const chatHistory = messages.map(msg => ({
         role: msg.isUser ? "user" : "assistant",
         content: msg.text,
@@ -169,7 +218,7 @@ export default function AIJournalScreen() {
 
       const response = await fetchDataFromGrok([
         ...chatHistory,
-        { role: "user", content: inputText }
+        { role: "user", content: prompt }
       ]);
 
       addBotMessage(response);
@@ -210,7 +259,6 @@ export default function AIJournalScreen() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      {/* Modal for selecting date option */}
       <Modal
         visible={showModal}
         transparent={true}
@@ -244,7 +292,6 @@ export default function AIJournalScreen() {
         </View>
       </Modal>
 
-      {/* Modal for DateTimePicker */}
       <Modal
         visible={showDatePicker}
         transparent={true}
