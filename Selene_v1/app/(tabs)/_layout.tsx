@@ -43,6 +43,7 @@ export default function TabLayout() {
         options={{
           title: 'Media',
           tabBarIcon: ({ color, size }) => <FontAwesome name="book" color={color} size={size} />,
+
         }}
       />
          
