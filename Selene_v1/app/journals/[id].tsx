@@ -1,8 +1,9 @@
 import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import React from 'react';
+import React, { useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useUserData } from '../providers/UserDataProvider';
 import { Ionicons } from '@expo/vector-icons';
+import { Audio } from 'expo-av';
 import lightColors from '@/src/constants/Colors';
 
 interface JournalEntry {
@@ -10,17 +11,42 @@ interface JournalEntry {
   title: string;
   content: string;
   date: string;
-  images?: string[];
+  time?: string;
+  media?: { type: string; url: string }[];
+  audioUrl?: string;
   tags?: string[];
 }
 
 const JournalDisplay = () => {
   const { id } = useLocalSearchParams();
-  const { userData, deleteJournal } = useUserData(); // Destructure to get userData and deleteJournal
-  const journalEntries = userData || []; // Ensure it's at least an empty array
-  const journalEntry = journalEntries.find((entry: JournalEntry) => entry.id === id);
+  const { userData, deleteJournal } = useUserData();
+  const journalEntry = userData.find((entry: JournalEntry) => entry.id === id);
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
 
   const router = useRouter();
+
+  // Function to play audio
+  const playAudio = async () => {
+    if (!journalEntry?.audioUrl) return;
+    try {
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: journalEntry.audioUrl },
+        { shouldPlay: true }
+      );
+      setSound(sound);
+      await sound.playAsync();
+    } catch (error) {
+      console.error('Error playing audio:', error);
+    }
+  };
+
+  // Function to stop audio
+  const stopAudio = async () => {
+    if (sound) {
+      await sound.stopAsync();
+      setSound(null);
+    }
+  };
 
   const handleDelete = async () => {
     if (id) {
@@ -29,68 +55,89 @@ const JournalDisplay = () => {
     }
   };
 
-  const handleUpdate = () => {
-   // router.push(`/update/${id}`);
-  };
-
   return (
     <View style={styles.container}>
       {/* App Bar */}
       <View style={styles.appBar}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backIcon}>
-          <Ionicons name="arrow-back" size={24} color="black" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Journal Entry</Text>
-      </View>
+  <TouchableOpacity onPress={() => router.back()} style={styles.backIcon}>
+    <Ionicons name="arrow-back" size={24} color="black" />
+  </TouchableOpacity>
+  <Text style={styles.title}>Journal Entry</Text>
+  <View style={{ flex: 1 }} />
+  <TouchableOpacity onPress={() => {}} style={styles.appBarButton}>
+    <Ionicons name="create-outline" size={32} color={lightColors.accent} />
+  </TouchableOpacity>
+</View>
+
       <ScrollView contentContainerStyle={styles.scrollViewContent}>
+        {journalEntry ? (
+          <>
+            {/* Title */}
+            <Text style={styles.entryTitle}>{journalEntry.title}</Text>
 
-      {journalEntry ? (
-        <>
-          {/* Title */}
-          <Text style={styles.entryTitle}>{journalEntry.title}</Text>
+            {/* Date & Time */}
+            <Text style={styles.date}>
+              {journalEntry.date} {journalEntry.time ? `• ${journalEntry.time}` : ''}
+            </Text>
 
-          {/* Date */}
-          <Text style={styles.date}>{journalEntry.date}</Text>
+            {/* Content */}
+            <Text style={styles.content}>{journalEntry.content}</Text>
 
-          {/* Content */}
-          <Text style={styles.content}>{journalEntry.content}</Text>
+            {/* Media (Images) */}
+            {journalEntry.media && journalEntry.media.length > 0 && (
+              <View style={styles.mediaContainer}>
+                {journalEntry.media.map((media, index) => (
+                  <View key={index}>
+                    {media.type === 'image' ? (
+                      <Image source={{ uri: media.url }} style={styles.image} />
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            )}
 
-          {/* Images */}
-          {journalEntry.images && journalEntry.images.length > 0 && (
-            <View>
-              {journalEntry.images.map((image, index) => (
-                <Image key={index} source={{ uri: image }} style={styles.image} />
-              ))}
+            {/* Audio Playback */}
+            {journalEntry.audioUrl && (
+              <View style={styles.audioContainer}>
+                <TouchableOpacity onPress={playAudio} style={styles.audioButton}>
+                  <Ionicons name="play-circle" size={30} color={lightColors.primary} />
+                  <Text style={styles.buttonText}>Play Audio</Text>
+                </TouchableOpacity>
+
+                {sound && (
+                  <TouchableOpacity onPress={stopAudio} style={styles.audioButton}>
+                    <Ionicons name="stop-circle" size={30} color="red" />
+                    <Text style={styles.buttonText}>Stop</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
+            {/* Tags */}
+            {journalEntry.tags && journalEntry.tags.length > 0 && (
+              <View style={styles.tagsContainer}>
+                {journalEntry.tags.map((tag, index) => (
+                  <Text key={index} style={styles.tag}>
+                    {tag}
+                  </Text>
+                ))}
+              </View>
+            )}
+
+            {/* Buttons */}
+            <View style={styles.buttonContainer}>
+              
+
+              <TouchableOpacity onPress={handleDelete} style={styles.button}>
+                <Ionicons name="trash-outline" size={20} color="white" />
+                <Text style={styles.buttonText}>Delete</Text>
+              </TouchableOpacity>
             </View>
-          )}
-
-          {/* Tags */}
-          {journalEntry.tags && journalEntry.tags.length > 0 && (
-            <View style={styles.tagsContainer}>
-              {journalEntry.tags.map((tag, index) => (
-                <Text key={index} style={styles.tag}>{tag}</Text>
-              ))}
-            </View>
-          )}
-
-          {/* Buttons */}
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity onPress={handleUpdate} style={styles.button}>
-              <Ionicons name="create-outline" size={20} color="blue" />
-              <Text style={styles.buttonText}>Edit</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={handleDelete} style={styles.button}>
-              <Ionicons name="trash-outline" size={20} color="red" />
-              <Text style={styles.buttonText}>Delete</Text>
-            </TouchableOpacity>
-          </View>
-        </>
-      ) : (
-        <Text style={styles.notFound}>Journal entry not found</Text>
-      )}
-            </ScrollView>
-
+          </>
+        ) : (
+          <Text style={styles.notFound}>Journal entry not found</Text>
+        )}
+      </ScrollView>
     </View>
   );
 };
@@ -107,8 +154,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
+  appBarButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   scrollViewContent: {
-    paddingBottom: 20, // Add padding to the bottom to ensure all content is visible
+    paddingBottom: 20,
   },
   backIcon: {
     marginRight: 10,
@@ -127,17 +179,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'gray',
     fontFamily: 'firaregular',
+    marginBottom: 10,
   },
   content: {
     marginVertical: 10,
     fontSize: 16,
     fontFamily: 'firaregular',
   },
+  mediaContainer: {
+    marginVertical: 10,
+  },
   image: {
     width: '100%',
-    height: 200,
-    marginBottom: 10,
+    height: 250,
     borderRadius: 10,
+    marginBottom: 10,
+  },
+  audioContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  audioButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 20,
   },
   tagsContainer: {
     flexDirection: 'row',
@@ -146,15 +212,10 @@ const styles = StyleSheet.create({
   },
   tag: {
     backgroundColor: lightColors.accent,
-    marginVertical: 8,
     padding: 5,
     color: lightColors.secondary,
     borderRadius: 5,
     marginRight: 10,
-  },
-  tagText: {
-    color: '#ffff',
-    fontFamily: 'firamedium',
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -164,11 +225,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginRight: 20,
+    backgroundColor:lightColors.error,
+    padding: 10,
+    borderRadius: 10,
   },
   buttonText: {
     fontSize: 16,
     marginLeft: 5,
     fontFamily: 'firaregular',
+    color: 'white',	
   },
   notFound: {
     fontSize: 18,

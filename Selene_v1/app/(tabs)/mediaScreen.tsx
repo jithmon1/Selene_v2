@@ -16,6 +16,7 @@ import { collection, getDocs } from "firebase/firestore";
 import { Video } from "expo-av";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import lightColors from "@/src/constants/Colors";
 
 const MediaScreen1 = () => {
   const [mediaItems, setMediaItems] = useState<any[]>([]);
@@ -129,7 +130,7 @@ const MediaScreen1 = () => {
     <SafeAreaView style={styles.container}>
       <Text style={styles.headerText}>My Media</Text>
       {loading ? (
-        <ActivityIndicator size="large" color="#008080" style={styles.loader} />
+        <ActivityIndicator size="large"  style={styles.loader} />
       ) : mediaItems.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>No media uploaded yet.</Text>
@@ -184,9 +185,9 @@ const styles = StyleSheet.create({
   },
   headerText: {
     fontSize: 24,
-    fontWeight: "bold",
     padding: 20,
-    color: "#008080",
+    fontFamily:'firamedium',
+    color:lightColors.primary,
     textAlign: "center",
   },
   loader: {
