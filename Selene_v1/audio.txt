@@ -1,0 +1,102 @@
+
+// // This component renders a single journal entry with its media (images, videos, audio)
+// const JournalEntryItem = ({ entry }) => {
+//   const [sound, setSound] = useState(null);
+//   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+
+//   // Cleanup the audio resource when the component unmounts
+//   useEffect(() => {
+//     return () => {
+//       if (sound) {
+//         sound.unloadAsync();
+//       }
+//     };
+//   }, [sound]);
+
+//   const handlePlayAudio = async () => {
+//     if (!isPlayingAudio && entry.audioUrl) {
+//       try {
+//         const { sound: playbackSound } = await Audio.Sound.createAsync(
+//           { uri: entry.audioUrl },
+//           { shouldPlay: true }
+//         );
+//         setSound(playbackSound);
+//         setIsPlayingAudio(true);
+//         playbackSound.setOnPlaybackStatusUpdate((status) => {
+//           if (status.didJustFinish) {
+//             setIsPlayingAudio(false);
+//             setSound(null);
+//           }
+//         });
+//       } catch (error) {
+//         console.error('Error playing audio:', error);
+//       }
+//     } else if (sound) {
+//       await sound.stopAsync();
+//       setIsPlayingAudio(false);
+//       setSound(null);
+//     }
+//   };
+
+//   return (
+//     <View style={styles.entry}>
+//       <Text style={styles.entryTitle}>{entry.title}</Text>
+//       <Text style={styles.entryContent}>{entry.content}</Text>
+
+//       {/* Display media if available */}
+//       {entry.media && entry.media.length > 0 && (
+//         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mediaScroll}>
+//           {entry.media.map((mediaItem, index) => {
+//             if (mediaItem.type === 'image') {
+//               return (
+//                 <Image
+//                   key={index}
+//                   source={{ uri: mediaItem.url }}
+//                   style={styles.mediaThumbnail}
+//                 />
+//               );
+//             } else if (mediaItem.type === 'video') {
+//               return (
+//                 <Video
+//                   key={index}
+//                   source={{ uri: mediaItem.url }}
+//                   style={styles.mediaThumbnail}
+//                   useNativeControls
+//                   resizeMode="cover"
+//                   isLooping
+//                 />
+//               );
+//             }
+//             return null;
+//           })}
+//         </ScrollView>
+//       )}
+
+//       {/* Audio control if an audio URL is provided */}
+//       {entry.audioUrl && (
+//         <TouchableOpacity style={styles.audioButton} onPress={handlePlayAudio}>
+//           <Text style={styles.audioButtonText}>
+//             {isPlayingAudio ? 'Stop Audio' : 'Play Audio'}
+//           </Text>
+//         </TouchableOpacity>
+//       )}
+//     </View>
+//   );
+// };
+
+
+
+      <View style={styles.entriesContainer}>
+      {filteredEntries?.length === 0 ? (
+  <View style={styles.noEntriesContainer}>
+    <Text style={styles.noEntries}> No journal entries for this date
+
+    </Text>
+    <JournalButton
+              title="Create New Journal Entry"
+              onPress={handlePress}
+            />  </View>
+) : (
+  <JournalEntriesList entries={filteredEntries} />
+)}
+      </View>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, ScrollView, StyleSheet, Dimensions } from 'react-native';
+import { View, ScrollView, Text, StyleSheet, Dimensions } from 'react-native';
 import DateComponent from './Date'; // Adjust the import path as necessary
 import moment from 'moment';
 
@@ -10,32 +10,49 @@ interface CalendarProps {
 
 const Calendar: React.FC<CalendarProps> = ({ selectedDate, onSelectDate }) => {
   const [dates, setDates] = useState<Date[]>([]);
+  const [month, setMonth] = useState<string>(moment().format('MMMM YYYY'));
   const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
-    // Generate an array of dates for the current month
-    const startOfMonth = moment().startOf('month');
+    const startOfMonth = moment().subtract(1, 'month').startOf('month'); // Start from previous month
     const endOfMonth = moment().endOf('month');
     const monthDates = [];
-    for (let date = startOfMonth; date.isBefore(endOfMonth) || date.isSame(endOfMonth, 'day'); date.add(1, 'days')) {
+
+    for (
+      let date = startOfMonth;
+      date.isBefore(endOfMonth) || date.isSame(endOfMonth, 'day');
+      date.add(1, 'days')
+    ) {
       monthDates.push(date.clone().toDate());
     }
+
     setDates(monthDates);
   }, []);
 
   useEffect(() => {
-    // Scroll to the current date
-    const currentDateIndex = dates.findIndex(date => moment(date).isSame(moment(), 'day'));
+    const currentDateIndex = dates.findIndex((date) =>
+      moment(date).isSame(moment(), 'day')
+    );
+
     if (currentDateIndex !== -1 && scrollViewRef.current) {
       const screenWidth = Dimensions.get('window').width;
-      const itemWidth = screenWidth / 7; // Assuming 7 items fit in the screen width
-      const scrollToX = (currentDateIndex+5) * itemWidth - screenWidth / 2 + itemWidth / 2;
+      const itemWidth = screenWidth / 7;
+      const scrollToX =
+        currentDateIndex * itemWidth - screenWidth / 2 + itemWidth / 2;
+
       scrollViewRef.current.scrollTo({ x: scrollToX, animated: true });
     }
   }, [dates]);
 
+  useEffect(() => {
+    if (selectedDate) {
+      setMonth(moment(selectedDate).format('MMMM YYYY'));
+    }
+  }, [selectedDate]);
+
   return (
     <View style={styles.container}>
+      <Text style={styles.monthText}>{month}</Text>
       <View style={styles.scroll}>
         <ScrollView
           ref={scrollViewRef}
@@ -59,10 +76,16 @@ const Calendar: React.FC<CalendarProps> = ({ selectedDate, onSelectDate }) => {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    justifyContent: 'flex-start',
-    alignItems: 'flex-start',
-    marginHorizontal: 16,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  monthText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'left',
+     alignSelf: 'flex-start', marginLeft: 16 ,
+    fontFamily: 'firabold',
+    marginBottom: 5,
   },
   scroll: {
     flexDirection: 'row',

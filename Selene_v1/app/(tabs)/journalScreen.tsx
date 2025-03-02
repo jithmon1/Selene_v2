@@ -38,7 +38,7 @@ const JournalScreen = () => {
     if (userData) {
       setLoading(false);
     }
-    console.log('User Data:', userData);
+   // console.log('User Data:', userData);
   }, [userData]);
 
   // Helper to parse dates in the format "DD MMMM YYYY"
@@ -98,8 +98,8 @@ const JournalScreen = () => {
 
   // Debug: log changes to search query and filtered count.
   useEffect(() => {
-    console.log('Search Query:', searchQuery);
-    console.log('Filtered entries count:', displayedEntries.length);
+    // console.log('Search Query:', searchQuery);
+    // console.log('Filtered entries count:', displayedEntries.length);
   }, [searchQuery, displayedEntries]);
 
   const handlePress = () => {
