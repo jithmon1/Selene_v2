@@ -307,7 +307,7 @@ const JournalEntryPage = () => {
       };
       await setDoc(doc(collection(FIRESTORE_DB, 'users', userId, 'journals'), newEntry.id), newEntry);
       alert('Journal entry saved successfully');
-      router.push('/journalScreen');
+      router.back();
     } catch (error) {
       console.error('Error saving journal entry:', error);
       alert('Failed to save journal entry');

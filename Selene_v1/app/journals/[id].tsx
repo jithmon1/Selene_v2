@@ -1,10 +1,11 @@
-import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import React, { useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useUserData } from '../providers/UserDataProvider';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import lightColors from '@/src/constants/Colors';
+import { Activity } from 'lucide-react-native';
 
 interface JournalEntry {
   id: string;
@@ -20,7 +21,8 @@ interface JournalEntry {
 const JournalDisplay = () => {
   const { id } = useLocalSearchParams();
   const { userData, deleteJournal } = useUserData();
-  const journalEntry = userData.find((entry: JournalEntry) => entry.id === id);
+  const [isLoading, setIsLoading] = useState(false);
+  const journalEntry = userData?.find((entry: JournalEntry) => entry.id === id);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
 
   const router = useRouter();
@@ -50,8 +52,15 @@ const JournalDisplay = () => {
 
   const handleDelete = async () => {
     if (id) {
-      await deleteJournal(id);
-      router.back();
+      setIsLoading(true);
+      try {
+        await deleteJournal(id);
+        router.back();
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -135,8 +144,7 @@ const JournalDisplay = () => {
             </View>
           </>
         ) : (
-          <Text style={styles.notFound}>Journal entry not found</Text>
-        )}
+<ActivityIndicator size="large" color={lightColors.primary} />     )}
       </ScrollView>
     </View>
   );

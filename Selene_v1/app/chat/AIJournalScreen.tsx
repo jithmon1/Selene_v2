@@ -20,6 +20,9 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 import firebaseApp from "@/FirebaseConfig";
 import moment from "moment";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { Appbar } from "react-native-paper";
+import { useRoute } from "@react-navigation/native";
+import { useRouter } from "expo-router";
 
 const db = getFirestore(firebaseApp);
 const auth = getAuth(firebaseApp);
@@ -38,16 +41,7 @@ export default function AIJournalScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedSummaryDate, setSelectedSummaryDate] = useState(moment().toDate());
-  const [allJournals, setAllJournals] = useState<any[]>([]);
-
-  // Identity response configuration
-  const identityTriggers = [
-    "who are you",
-    "what are you",
-    "who created you",
-    "what is your purpose",
-    "what can you do"
-  ];
+  const router = useRouter();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -315,13 +309,10 @@ export default function AIJournalScreen() {
         </View>
       </Modal>
 
-      <LinearGradient
-        colors={[lightColors.primary, lightColors.accent]}
-        style={styles.header}
-      >
-        <Text style={styles.headerTitle}>AI Journal</Text>
-        <Text style={styles.text}>Chat with your journals using AI</Text>
-      </LinearGradient>
+      <Appbar.Header style={styles.appBar}>
+        <Appbar.BackAction onPress={() => router.back()} />
+        <Appbar.Content title="Ask Selene AI" titleStyle={styles.title} />
+      </Appbar.Header>
 
       <FlatList
         data={messages}
@@ -369,6 +360,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F0FFFF",
+  },
+  appBar: {
+    color: lightColors.textPrimary,
+    fontFamily: 'firabold',
+  },
+  title: {
+    fontSize: 20,
+    fontFamily: 'firamedium', // Applying FiraMedium font
+    color: lightColors.textPrimary,
   },
   header: {
     paddingTop: 50,
