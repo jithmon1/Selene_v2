@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   journalContainer: {
-    marginHorizontal: 16,
+    marginHorizontal: 8,
     marginBottom: 8,
     padding: 16,
     backgroundColor: '#fff',
@@ -76,6 +76,7 @@ const styles = StyleSheet.create({
   },
   journalTitle: {
     fontSize: 18,
+    color: lightColors.primary,
     marginBottom: 4,
     fontFamily: 'firamedium',
   },
