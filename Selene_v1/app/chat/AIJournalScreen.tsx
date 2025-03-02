@@ -40,6 +40,15 @@ export default function AIJournalScreen() {
   const [selectedSummaryDate, setSelectedSummaryDate] = useState(moment().toDate());
   const [allJournals, setAllJournals] = useState<any[]>([]);
 
+  // Identity response configuration
+  const identityTriggers = [
+    "who are you",
+    "what are you",
+    "who created you",
+    "what is your purpose",
+    "what can you do"
+  ];
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -184,6 +193,14 @@ export default function AIJournalScreen() {
     setIsLoading(true);
 
     try {
+      // Check for identity questions first
+      const cleanInput = inputText.trim().toLowerCase();
+      if (identityTriggers.some(trigger => cleanInput.includes(trigger))) {
+        addBotMessage("I'm Selene AI, an AI bot built on top of this platform Selene. I help you get detailed reports of your journals, recollect your journal points, and many more. Tell me what should I do for you?");
+        setIsLoading(false);
+        return;
+      }
+
       const journalContext = allJournals.length > 0 
         ? "Journal Context:\n" + allJournals.map(j => 
             `[${j.date}] ${j.title}\n${j.content}\nTags: ${j.tags?.join(", ") || "None"}`
