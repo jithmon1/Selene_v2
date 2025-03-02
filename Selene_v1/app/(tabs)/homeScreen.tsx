@@ -41,7 +41,9 @@ const HomeScreen = () => {
         <DailyQuote date={selectedDate} />
       </View>
       <View style={styles.row}>
+        <TouchableOpacity onPress={() => router.push('/chat/AIJournalScreen')}>
         <ChatBotButton />
+        </TouchableOpacity>
         <TasksComponent selectedDate={selectedDate} />
       </View>
       <View>

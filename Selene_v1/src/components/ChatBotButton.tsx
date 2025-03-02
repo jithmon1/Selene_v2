@@ -7,15 +7,13 @@ import lightColors from '../constants/Colors';
 const ChatBotButton = () => {
   const router = useRouter();
 
-  const handlePress = () => {
-   // router.push('/chatbot'); // Adjust the path to your chatbot screen
-  };
+  
 
   return (
-    <TouchableOpacity style={styles.button} onPress={handlePress}>
+    <View style={styles.button} >
       <Ionicons name="sparkles-outline" size={28} color="white" />
       <Text style={styles.buttonText}>Ask Selene</Text>
-    </TouchableOpacity>
+    </View>
   );
 };
 
@@ -34,7 +32,7 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
-    fontFamily:'firamedium',
+    fontFamily: 'firamedium',
     marginTop: 8, // Space between icon and text
   },
 });
