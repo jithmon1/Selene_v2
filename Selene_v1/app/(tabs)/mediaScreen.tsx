@@ -1,4 +1,3 @@
-// media.tsx
 import React, { useState, useEffect } from "react";
 import { 
   View, 
@@ -11,50 +10,26 @@ import {
   Modal, 
   TouchableOpacity 
 } from "react-native";
-import { FIRESTORE_DB, FIREBASE_AUTH } from "@/FirebaseConfig";
-import { collection, getDocs } from "firebase/firestore";
 import { Video } from "expo-av";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import lightColors from "@/src/constants/Colors";
+import { useUserData } from "../providers/UserDataProvider";
 
 const MediaScreen1 = () => {
-  const [mediaItems, setMediaItems] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const userId = FIREBASE_AUTH.currentUser?.uid;
+  const { userData, loading } = useUserData();  // Destructure the data and loading state from context
 
-  useEffect(() => {
-    const fetchMedia = async () => {
-      if (!userId) {
-        setLoading(false);
-        return;
-      }
-      try {
-        // Get all journal entries for the current user
-        const journalsRef = collection(FIRESTORE_DB, "users", userId, "journals");
-        const snapshot = await getDocs(journalsRef);
-        const mediaList: any[] = [];
-        snapshot.forEach((docSnapshot) => {
-          const data = docSnapshot.data();
-          if (data.media && Array.isArray(data.media)) {
-            data.media.forEach((item: any) => {
-              // You can add extra fields if needed, e.g. journalId
-              mediaList.push({ ...item, journalId: docSnapshot.id });
-            });
-          }
-        });
-        setMediaItems(mediaList);
-      } catch (error) {
-        console.error("Error fetching media: ", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMedia();
-  }, [userId]);
+  // Extract media items from userData
+  const mediaItems = userData.reduce((acc, entry) => {
+    if (entry.media && Array.isArray(entry.media)) {
+      entry.media.forEach((item) => {
+        acc.push({ ...item, journalId: entry.id });
+      });
+    }
+    return acc;
+  }, []);
 
   const openModal = (index: number) => {
     setCurrentIndex(index);
@@ -130,7 +105,7 @@ const MediaScreen1 = () => {
     <SafeAreaView style={styles.container}>
       <Text style={styles.headerText}>My Media</Text>
       {loading ? (
-        <ActivityIndicator size="large"  style={styles.loader} />
+        <ActivityIndicator size="large" style={styles.loader} />
       ) : mediaItems.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>No media uploaded yet.</Text>
@@ -182,19 +157,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f5f5f5",
+    margin:16,
   },
   headerText: {
     fontSize: 24,
     padding: 20,
-    fontFamily:'firamedium',
-    color:lightColors.primary,
+    fontFamily: 'firamedium',
+    color: lightColors.primary,
     textAlign: "center",
   },
   loader: {
     marginTop: 20,
   },
   listContainer: {
-    paddingHorizontal: 10,
     paddingBottom: 20,
   },
   mediaItem: {
