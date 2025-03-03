@@ -26,11 +26,29 @@ import { useRouter } from "expo-router";
 
 const db = getFirestore(firebaseApp);
 const auth = getAuth(firebaseApp);
+const identityTriggers = [
+  "who are you",
+  "what are you",
+  "your name",
+  "who built you",
+  "what can you do",
+];
 
 type Message = {
   id: string;
   text: string;
   isUser: boolean;
+};
+
+type JournalEntry = {
+  id: string;
+  title: string;
+  content: string;
+  date: string;
+  time: string;
+  tags?: string[];
+  media?: { type: string; url: string }[];
+  audioUrl?: string;
 };
 
 export default function AIJournalScreen() {
@@ -41,6 +59,7 @@ export default function AIJournalScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedSummaryDate, setSelectedSummaryDate] = useState(moment().toDate());
+  const [allJournals, setAllJournals] = useState<JournalEntry[]>([]);
   const router = useRouter();
 
   useEffect(() => {
@@ -64,7 +83,7 @@ export default function AIJournalScreen() {
       return querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      })) as JournalEntry[];
     } catch (error) {
       console.error("Error fetching all journals:", error);
       return [];

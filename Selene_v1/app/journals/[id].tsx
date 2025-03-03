@@ -90,6 +90,16 @@ const JournalDisplay = () => {
             </Text>
 
             {/* Content */}
+            {/* Tags */}
+            {journalEntry.tags && journalEntry.tags.length > 0 && (
+              <View style={styles.tagsContainer}>
+                {journalEntry.tags.map((tag, index) => (
+                  <Text key={index} style={styles.tag}>
+                    {tag}
+                  </Text>
+                ))}
+              </View>
+            )}
             <Text style={styles.content}>{journalEntry.content}</Text>
 
             {/* Media (Images) */}
@@ -122,16 +132,7 @@ const JournalDisplay = () => {
               </View>
             )}
 
-            {/* Tags */}
-            {journalEntry.tags && journalEntry.tags.length > 0 && (
-              <View style={styles.tagsContainer}>
-                {journalEntry.tags.map((tag, index) => (
-                  <Text key={index} style={styles.tag}>
-                    {tag}
-                  </Text>
-                ))}
-              </View>
-            )}
+            
 
             {/* Buttons */}
             <View style={styles.buttonContainer}>

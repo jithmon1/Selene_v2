@@ -1,40 +1,78 @@
+import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
-import React, { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import lightColors from '../constants/Colors';
+import { FIRESTORE_DB, FIREBASE_AUTH } from '@/FirebaseConfig';
+import { collection, query, where, onSnapshot, updateDoc, doc } from 'firebase/firestore';
 
-const TasksComponent = ({ selectedDate }) => {
-  // Hardcoded sample tasks for testing
-  const [tasksForToday, setTasksForToday] = useState([
-    { id: 1, task: 'Complete journal entry', date: selectedDate, completed: false },
-    { id: 2, task: 'Review daily goals', date: selectedDate, completed: false },
-    { id: 3, task: 'Exercise for 30 minutes', date: selectedDate, completed: false },
-    { id: 4, task: 'Read a book', date: selectedDate, completed: false },
-    { id: 5, task: 'Plan tomorrow’s schedule', date: selectedDate, completed: false },
-    { id: 6, task: 'Meditate for 10 minutes', date: selectedDate, completed: false },
-    { id: 7, task: 'Drink 8 glasses of water', date: selectedDate, completed: false },
-  ]);
+interface Task {
+  id: string;
+  task: string;
+  createdAt?: any; // Firestore timestamp or Date
+  completed: boolean;
+}
 
-  // Toggle task completion
-  const toggleTask = (id) => {
-    setTasksForToday((prevTasks) =>
-      prevTasks.map((task) =>
-        task.id === id ? { ...task, completed: !task.completed } : task
-      )
-    );
+interface TasksComponentProps {
+  selectedDate?: Date | string;
+}
+
+const TasksComponent: React.FC<TasksComponentProps> = ({ selectedDate }) => {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const userId = FIREBASE_AUTH.currentUser?.uid;
+
+  // Convert selectedDate to a Date object if provided
+  const selectedDateObj =
+    selectedDate && !(selectedDate instanceof Date)
+      ? new Date(selectedDate)
+      : selectedDate || null;
+
+  // Fetch tasks in real time from Firebase and filter by selectedDate if provided
+  useEffect(() => {
+    if (!userId) return;
+    const q = query(collection(FIRESTORE_DB, 'tasks'), where('userId', '==', userId));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedTasks: Task[] = snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      })) as Task[];
+
+      const filteredTasks = selectedDateObj
+        ? fetchedTasks.filter(task => {
+            if (!task.createdAt) return false;
+            const taskDate = task.createdAt.toDate ? task.createdAt.toDate() : new Date(task.createdAt);
+            return (
+              taskDate.getFullYear() === selectedDateObj.getFullYear() &&
+              taskDate.getMonth() === selectedDateObj.getMonth() &&
+              taskDate.getDate() === selectedDateObj.getDate()
+            );
+          })
+        : fetchedTasks;
+
+      setTasks(filteredTasks);
+    });
+    return () => unsubscribe();
+  }, [userId, selectedDateObj]);
+
+  // Toggle task completion status in Firebase
+  const toggleTask = async (id: string, currentStatus: boolean) => {
+    try {
+      const taskRef = doc(FIRESTORE_DB, 'tasks', id);
+      await updateDoc(taskRef, { completed: !currentStatus });
+    } catch (error) {
+      console.error('Error toggling task status:', error);
+    }
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.heading}>Goals</Text>
-
-      {tasksForToday.length > 0 ? (
+      {tasks.length > 0 ? (
         <View style={styles.taskListContainer}>
           <FlatList
-            data={tasksForToday}
+            data={tasks}
             keyExtractor={(item) => item.id.toString()}
             renderItem={({ item }) => (
-              <TouchableOpacity onPress={() => toggleTask(item.id)} style={styles.taskItem}>
+              <TouchableOpacity onPress={() => toggleTask(item.id, item.completed)} style={styles.taskItem}>
                 <Ionicons
                   name={item.completed ? 'checkbox' : 'square-outline'}
                   size={24}
@@ -45,7 +83,7 @@ const TasksComponent = ({ selectedDate }) => {
                 </Text>
               </TouchableOpacity>
             )}
-            scrollEnabled={true} // Ensures the list is scrollable
+            scrollEnabled={true}
           />
         </View>
       ) : (
@@ -65,7 +103,7 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 12,
     elevation: 3,
-    height: 200, // Keeps the component fixed
+    height: 200,
   },
   heading: {
     fontSize: 16,
@@ -74,7 +112,7 @@ const styles = StyleSheet.create({
     fontFamily: 'firamedium',
   },
   taskListContainer: {
-    height: 130, // Fixed height for the scrollable list
+    height: 130,
     overflow: 'hidden',
   },
   taskItem: {
