@@ -123,7 +123,7 @@ const JournalScreen = () => {
         <View style={styles.entryHeader}>
           <Text style={styles.entryTitle}>{entry.title}</Text>
           <Text style={styles.entryDate}>
-            {entry.date} {entry.time && `- ${entry.time}`}
+            {entry.date} 
           </Text>
         </View>
         <Text style={styles.entryContent} numberOfLines={2}>
